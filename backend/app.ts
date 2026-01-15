@@ -28,14 +28,30 @@ import { frontendPort, getBackendPort } from "../src/utils/portUtils";
 
 require("dotenv").config();
 
-const allowedOrigins: string[] = [`http://localhost:${frontendPort}`];
+const publicPort = process.env.PUBLIC_PORT; // vindo do render-proxy
 
-if (process.env.PUBLIC_PORT) {
-  allowedOrigins.push(`http://localhost:${process.env.PUBLIC_PORT}`);
-}
+const allowedOrigins: (string | RegExp)[] = [
+  // local (frontend direto)
+  new RegExp(`^http://localhost:${frontendPort}$`),
 
-const corsOption = {
-  origin: allowedOrigins,
+  // local via proxy (ex: http://localhost:10000)
+  new RegExp(`^http://localhost:${publicPort || "\\d+"}$`),
+
+  // Render (qualquer subdomínio onrender.com)
+  /^https:\/\/.*\.onrender\.com$/,
+];
+
+const corsOption: cors.CorsOptions = {
+  origin: (origin, cb) => {
+    // origin pode ser undefined em chamadas server-to-server
+    if (!origin) return cb(null, true);
+
+    const ok = allowedOrigins.some((rule) =>
+      rule instanceof RegExp ? rule.test(origin) : rule === origin
+    );
+
+    cb(ok ? null : new Error("Not allowed by CORS"), ok);
+  },
   credentials: true,
 };
 

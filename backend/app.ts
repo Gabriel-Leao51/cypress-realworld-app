@@ -28,8 +28,14 @@ import { frontendPort, getBackendPort } from "../src/utils/portUtils";
 
 require("dotenv").config();
 
+const allowedOrigins: string[] = [`http://localhost:${frontendPort}`];
+
+if (process.env.PUBLIC_PORT) {
+  allowedOrigins.push(`http://localhost:${process.env.PUBLIC_PORT}`);
+}
+
 const corsOption = {
-  origin: `http://localhost:${frontendPort}`,
+  origin: allowedOrigins,
   credentials: true,
 };
 

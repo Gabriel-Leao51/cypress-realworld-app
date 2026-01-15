@@ -2,31 +2,41 @@ import express from "express";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { spawn } from "child_process";
 
-const PUBLIC_PORT = process.env.PORT || 10000;
+const PUBLIC_PORT = process.env.PORT || 10000; // proxy público (10000 local / PORT no Render)
 const FRONTEND_PORT = 3000;
 const BACKEND_PORT = 3001;
 
-// Start RWA (starts frontend on 3000 + backend on 3001 by default)
-spawn("yarn", ["dev"], { stdio: "inherit", shell: true });
+// IMPORTANTÍSSIMO: não deixe PORT público contaminar o frontend
+const childEnv = {
+  ...process.env,
+  PORT: String(FRONTEND_PORT),
+  VITE_BACKEND_PORT: String(BACKEND_PORT),
+  PUBLIC_PORT: String(PUBLIC_PORT),
+};
+
+// Windows-safe: chama yarn via npx (evita "'yarn' is not recognized")
+spawn("npx", ["yarn", "dev"], { stdio: "inherit", shell: true, env: childEnv });
 
 const app = express();
 
-// Backend API (RWA backend routes are under /api)
 app.use(
   "/api",
   createProxyMiddleware({
-    target: `http://127.0.0.1:${BACKEND_PORT}`,
+    target: `http://localhost:${BACKEND_PORT}`,
     changeOrigin: true,
+    proxyTimeout: 60000,
+    timeout: 60000,
   })
 );
 
-// Everything else -> frontend
 app.use(
   "/",
   createProxyMiddleware({
-    target: `http://127.0.0.1:${FRONTEND_PORT}`,
+    target: `http://localhost:${FRONTEND_PORT}`,
     changeOrigin: true,
     ws: true,
+    proxyTimeout: 60000,
+    timeout: 60000,
   })
 );
 
